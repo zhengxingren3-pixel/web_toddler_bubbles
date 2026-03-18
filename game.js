@@ -52,10 +52,6 @@
     { type: "image", src: "./assets/p11.jpg", title: "照片 11" },
     { type: "image", src: "./assets/p12.jpg", title: "照片 12" },
     { type: "image", src: "./assets/p13.jpg", title: "照片 13" },
-    { type: "video", src: "./assets/v01.mp4", title: "视频 1" },
-    { type: "video", src: "./assets/v02.mp4", title: "视频 2" },
-    { type: "video", src: "./assets/v03.mp4", title: "视频 3" },
-    { type: "video", src: "./assets/v04.mp4", title: "视频 4" },
   ];
 
   const state = {
@@ -344,10 +340,14 @@
     let bestD = Infinity;
     for (let i = 0; i < state.bubbles.length; i++) {
       const b = state.bubbles[i];
+      // 绘制时泡泡有“呼吸”脉动，命中检测也要用同样的半径，否则会出现
+      // 视觉上点到边缘但判定没点中，从而走到“弹星星”的空白反馈分支。
+      const pulse = 1 + Math.sin(performance.now() * 0.003 + b.phase) * 0.03;
+      const r = b.r * pulse;
       const dx = x - b.x;
       const dy = y - b.y;
       const d = dx * dx + dy * dy;
-      const rr = b.r * b.r;
+      const rr = r * r;
       if (d <= rr && d < bestD) {
         bestD = d;
         bestIdx = i;
