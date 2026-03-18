@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b1220" />
+    <title>点泡泡（幼儿版）</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div class="titles">
+            <div class="title">点泡泡（幼儿版）</div>
+            <div class="subtitle">点一下就会“啪”</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label class="toggle">
+            <input id="soundToggle" type="checkbox" checked />
+            <span>声音</span>
+          </label>
+          <label class="toggle">
+            <input id="vibeToggle" type="checkbox" checked />
+            <span>震动</span>
+          </label>
+          <button id="btnMore" class="btn">更多泡泡</button>
+          <button id="btnClear" class="btn">清空</button>
+        </div>
+      </header>
+
+      <main class="stage-wrap">
+        <canvas id="stage" width="900" height="560"></canvas>
+        <div class="hint">
+          <div>提示：点泡泡就会爆开并弹出一张照片/一段小视频。</div>
+          <div>适合 2 岁：没有失败、没有计时、随便点。</div>
+        </div>
+      </main>
+    </div>
+
+    <div id="mediaModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="媒体预览">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <div class="modal-card" role="document">
+        <div class="modal-top">
+          <div class="modal-title" id="modalTitle">惊喜！</div>
+          <button id="btnCloseModal" class="icon-btn" aria-label="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <img id="modalImg" class="modal-media hidden" alt="照片" />
+          <video id="modalVideo" class="modal-media hidden" playsinline muted controls></video>
+          <div id="modalNote" class="modal-note hidden"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="btnNextMedia" class="btn">换一个</button>
+          <button id="btnCloseModal2" class="btn primary">继续点泡泡</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./game.js"></script>
+  </body>
+</html>
+
