@@ -386,17 +386,16 @@
     }
   }
 
-  canvas.addEventListener("click", (e) => {
-    const p = pointerPos(e);
-    popAt(p.x, p.y);
-  });
+  // 统一使用 Pointer Events：在移动端/触屏上比 click/touchstart 更稳定
   canvas.addEventListener(
-    "touchstart",
+    "pointerdown",
     (e) => {
+      // 防止浏览器把轻微手势当成滚动/缩放，从而丢掉点击
+      e.preventDefault();
       const p = pointerPos(e);
       popAt(p.x, p.y);
     },
-    { passive: true }
+    { passive: false }
   );
 
   btnMore.addEventListener("click", () => {
