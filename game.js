@@ -57,6 +57,9 @@
   const state = {
     bubbles: [], // {x,y,r,color,phase}
     sparkles: [], // {x,y,ttl,rot,color}
+    rings: [], // {x,y,r0,ttl,color}
+    pops: [], // {x,y,r,color,phase,ttl,shards[]}
+    flash: 0, // 命中反馈闪光帧数
     audio: null,
     lastMediaIdx: -1,
   };
@@ -289,6 +292,110 @@
     }
   }
 
+  function addRing(x, y, r0, color) {
+    state.rings.push({
+      x,
+      y,
+      r0,
+      ttl: 18,
+      color: color || "rgba(255,255,255,.9)",
+    });
+  }
+
+  function addPop(b) {
+    const shards = [];
+    const n = randInt(10, 16);
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, Math.PI * 2);
+      const sp = rand(2.2, 6.2) * (b.r / 60);
+      shards.push({
+        x: b.x,
+        y: b.y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - rand(0.4, 1.2),
+        r: rand(1.6, 3.4) * (b.r / 60),
+        rot: rand(0, Math.PI * 2),
+        vr: rand(-0.22, 0.22),
+      });
+    }
+    state.pops.push({
+      x: b.x,
+      y: b.y,
+      r: b.r,
+      color: b.color,
+      phase: b.phase,
+      ttl: 16,
+      shards,
+    });
+  }
+
+  function drawPops() {
+    for (const p of state.pops) {
+      const t = 1 - Math.max(0, Math.min(1, p.ttl / 16)); // 0 -> 1
+      const a = (1 - t) * 0.95;
+
+      // 泡泡“破裂前一瞬”的收缩残影
+      ctx.save();
+      ctx.globalAlpha = a;
+      const pulse = 1 + Math.sin(performance.now() * 0.003 + p.phase) * 0.03;
+      const r = p.r * pulse * (1 - t * 0.55);
+      const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.35, r * 0.2, p.x, p.y, r);
+      g.addColorStop(0, "rgba(255,255,255,.65)");
+      g.addColorStop(0.18, p.color);
+      g.addColorStop(1, "rgba(0,0,0,.25)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 碎片/泡沫
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.shadowColor = "rgba(255,255,255,.25)";
+      ctx.shadowBlur = 10;
+      for (const s of p.shards) {
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vy += 0.12; // 轻微重力
+        s.rot += s.vr;
+
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(s.rot);
+        ctx.fillStyle = "rgba(255,255,255,.85)";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, s.r * 1.6, s.r, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+
+      p.ttl -= 1;
+    }
+    state.pops = state.pops.filter((p) => p.ttl > 0);
+  }
+
+  function drawRings() {
+    for (const rg of state.rings) {
+      const t = 1 - Math.max(0, Math.min(1, rg.ttl / 18));
+      const r = rg.r0 * (0.65 + t * 1.25);
+      const a = (1 - t) * 0.9;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = rg.color;
+      ctx.lineWidth = 4 + (1 - a) * 3;
+      ctx.shadowColor = "rgba(255,255,255,.35)";
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(rg.x, rg.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      rg.ttl -= 1;
+    }
+    state.rings = state.rings.filter((rg) => rg.ttl > 0);
+  }
+
   function drawSparkles() {
     for (const s of state.sparkles) {
       const a = Math.max(0, Math.min(1, s.ttl / 30));
@@ -318,8 +425,22 @@
   function render() {
     drawBackground();
     drawTitleHint();
+    drawPops();
     for (const b of state.bubbles) drawBubble(b);
+    drawRings();
     drawSparkles();
+
+    if (state.flash > 0) {
+      const { w, h } = logicalSize();
+      const a = (state.flash / 8) * 0.18; // 轻微闪光
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      state.flash -= 1;
+    }
+
     requestAnimationFrame(render);
   }
   render();
@@ -356,33 +477,18 @@
     if (bestIdx >= 0) {
       const b = state.bubbles[bestIdx];
       state.bubbles.splice(bestIdx, 1);
+      addPop(b);
       addSparkles(b.x, b.y);
+      addRing(b.x, b.y, b.r, "rgba(255,255,255,.95)");
+      state.flash = 8;
       beep();
       vibe();
-      loadAndShowMedia();
+      // 先给孩子看到“破裂”，再弹出图片
+      setTimeout(() => loadAndShowMedia(), 140);
       // 保持画面上泡泡数量
       if (state.bubbles.length < cfg.maxCount) addBubble();
     } else {
-      // 点到空白也给一点点反馈：生成 1 个小星
-      state.sparkles.push({ x, y, ttl: 16, rot: rand(0, Math.PI * 2), color: "rgba(250,204,21,.92)" });
-      if (soundToggle.checked) {
-        // 轻一点的音
-        const ac = ensureAudio();
-        const o = ac.createOscillator();
-        const g = ac.createGain();
-        o.type = "sine";
-        o.frequency.value = 360 + Math.random() * 80;
-        g.gain.value = 0.0001;
-        o.connect(g);
-        g.connect(ac.destination);
-        const t0 = ac.currentTime;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.06, t0 + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
-        o.start(t0);
-        o.stop(t0 + 0.12);
-      }
-      vibe();
+      // 点到空白：不做任何反馈
     }
   }
 
